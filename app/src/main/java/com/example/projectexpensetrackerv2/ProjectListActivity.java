@@ -1,50 +1,75 @@
 package com.example.projectexpensetrackerv2;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
 import java.util.List;
-import androidx.appcompat.widget.SearchView; // search bar
 
-
+/**
+ * LIST ACTIVITY: Shows all projects in a list.
+ * Includes Search and Cloud Backup features.
+ * THE ADAPTER IS INSIDE THIS FILE TO KEEP IT SIMPLE.
+ */
 public class ProjectListActivity extends AppCompatActivity {
 
     private ListView listView;
-    private ProjectDatabaseHelper dbHelper;
+    private DbHelper db;
+    private FirebaseHelper firebase;
     private ProjectAdapter adapter;
-    private SearchView searchView;
-    private FirebaseHelper firebaseHelper;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.project_list);
 
+        db = new DbHelper(this);
+        firebase = new FirebaseHelper(this, db);
         listView = findViewById(R.id.listViewProjects);
-        searchView = findViewById(R.id.searchViewProjects); 
-        dbHelper = new ProjectDatabaseHelper(this);
-        firebaseHelper = new FirebaseHelper(this, dbHelper);
-
         listView.setEmptyView(findViewById(R.id.tvEmpty));
 
-        setupToolbar();
         setupSearch();
 
+        // ADD BUTTON: Go to Add/Edit screen in "Add" mode
         findViewById(R.id.btnAddProject).setOnClickListener(v -> {
-            Intent intent = new Intent(ProjectListActivity.this, MainActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(this, AddEditProjectActivity.class));
         });
 
-        refreshList();
+        // Set Toolbar
+        setSupportActionBar(findViewById(R.id.toolbarList));
     }
 
-    private void setupToolbar() {
-        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbarList);
-        setSupportActionBar(toolbar);
+    private void setupSearch() {
+        SearchView searchView = findViewById(R.id.searchViewProjects);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String q) { updateList(q); return true; }
+            @Override
+            public boolean onQueryTextChange(String q) { updateList(q); return true; }
+        });
+    }
+
+    private void updateList(String query) {
+        List<Models.Project> list = (query == null || query.isEmpty()) 
+                ? db.getAllProjects() : db.searchProjects(query);
+        adapter = new ProjectAdapter(this, list);
+        listView.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateList(null); // Refresh list when returning to this screen
     }
 
     @Override
@@ -56,84 +81,61 @@ public class ProjectListActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
         if (item.getItemId() == R.id.action_backup) {
-            performBackup();
+            Toast.makeText(this, "Backing up...", Toast.LENGTH_SHORT).show();
+            firebase.uploadAllData(new FirebaseHelper.BackupCallback() {
+                @Override public void onSuccess() { Toast.makeText(ProjectListActivity.this, "Backup Success!", Toast.LENGTH_SHORT).show(); }
+                @Override public void onFailure(String err) { Toast.makeText(ProjectListActivity.this, "Error: " + err, Toast.LENGTH_LONG).show(); }
+            });
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void performBackup() {
-        Toast.makeText(this, "Backing up data to cloud...", Toast.LENGTH_SHORT).show();
-        
-        firebaseHelper.uploadAllData(new FirebaseHelper.BackupCallback() {
-            @Override
-            public void onSuccess() {
-                Toast.makeText(ProjectListActivity.this, "Backup Successful!", Toast.LENGTH_LONG).show();
+    // --- INNER ADAPTER CLASS ---
+    private class ProjectAdapter extends ArrayAdapter<Models.Project> {
+        public ProjectAdapter(Context context, List<Models.Project> objects) {
+            super(context, 0, objects);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            Models.Project p = getItem(position);
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.project_item, parent, false);
             }
 
-            @Override
-            public void onFailure(String error) {
-                new AlertDialog.Builder(ProjectListActivity.this)
-                        .setTitle("Backup Failed")
-                        .setMessage(error)
-                        .setPositiveButton("OK", null)
-                        .show();
-            }
-        });
-    }
+            ((TextView) convertView.findViewById(R.id.tvProjectName)).setText(p.getName());
+            ((TextView) convertView.findViewById(R.id.tvProjectCode)).setText("Code: " + p.getProjectCode());
+            ((TextView) convertView.findViewById(R.id.tvStatus)).setText("Status: " + p.getStatus());
+            ((TextView) convertView.findViewById(R.id.tvBudget)).setText("£" + String.format("%.2f", p.getBudget()));
 
-// Search logic here
-    private void setupSearch() {
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                performSearch(query);
-                return true;
-            }
+            // VIEW/EDIT: Clicking the item opens the form in Edit mode
+            convertView.setOnClickListener(v -> {
+                Intent intent = new Intent(getContext(), AddEditProjectActivity.class);
+                intent.putExtra("ID", p.getId());
+                getContext().startActivity(intent);
+            });
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                performSearch(newText);
-                return true;
-            }
-        });
-    }
+            // EDIT ICON: Also goes to same screen
+            convertView.findViewById(R.id.ivEdit).setOnClickListener(v -> {
+                Intent intent = new Intent(getContext(), AddEditProjectActivity.class);
+                intent.putExtra("ID", p.getId());
+                getContext().startActivity(intent);
+            });
 
-    private void performSearch(String query) {
-        List<Project> filteredList = dbHelper.searchProjects(query);
-        adapter = new ProjectAdapter(this, filteredList);
-        listView.setAdapter(adapter);
-    }
+            // DELETE ICON: Show confirmation
+            convertView.findViewById(R.id.ivDelete).setOnClickListener(v -> {
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Delete?")
+                        .setMessage("Delete " + p.getName() + "?")
+                        .setPositiveButton("Yes", (d, w) -> {
+                            db.deleteProject(p.getId());
+                            updateList(null);
+                        })
+                        .setNegativeButton("No", null).show();
+            });
 
-    private void refreshList() {
-        // 1. Get all projects from the DatabaseHelper
-        List<Project> projectList = dbHelper.getAllProjects();
-
-        // 2. Setup the adapter with the list of projects
-        adapter = new ProjectAdapter(this, projectList);
-
-        // 3. Attach the adapter to the ListView
-        listView.setAdapter(adapter);
-    }
-
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Refresh the list every time we come back to this screen
-        refreshList();
-    }
-
-    public void showDeleteDialog(Project project) {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Project")
-                .setMessage("Are you sure you want to delete \"" + project.getName() + "\"?")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    dbHelper.deleteProject(project.getId());
-                    Toast.makeText(this, "Project deleted", Toast.LENGTH_SHORT).show();
-                    refreshList();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+            return convertView;
+        }
     }
 }

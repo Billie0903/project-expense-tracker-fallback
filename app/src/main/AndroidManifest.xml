@@ -11,23 +11,23 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ProjectExpenseTrackerV2">
+        
+        <!-- MAIN LAUNCHER -->
         <activity
             android:name=".ProjectListActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
-        <activity android:name=".MainActivity" />
-        <activity android:name=".ProjectDetailActivity" />
-        <activity android:name=".SearchActivity" />
+
+        <!-- PROJECT SCREENS -->
+        <activity android:name=".AddEditProjectActivity" />
+
+        <!-- EXPENSE SCREENS -->
         <activity android:name=".ExpenseListActivity" />
         <activity android:name=".AddEditExpenseActivity" />
-        <activity android:name=".EditProjectActivity" />
-        <activity android:name=".ExpenseDetailActivity" />
 
     </application>
 

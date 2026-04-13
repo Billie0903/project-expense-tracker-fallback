@@ -1,100 +1,105 @@
 package com.example.projectexpensetrackerv2;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.List;
 
+/**
+ * EXPENSE LIST ACTIVITY: Shows all expenses for a specific project.
+ * Uses an inner Adapter class for simplicity.
+ */
 public class ExpenseListActivity extends AppCompatActivity {
 
-    private ListView lvExpenses;
-    private TextView tvProjectTitle, tvBudgetInfo;
-    private ProjectDatabaseHelper dbHelper;
+    private ListView listView;
+    private DbHelper db;
     private int projectId;
-    private Project currentProject;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_expense_list);
 
-        dbHelper = new ProjectDatabaseHelper(this);
-
-        // Retrieve the Project ID passed from the Project List or Detail screen
+        db = new DbHelper(this);
         projectId = getIntent().getIntExtra("PROJECT_ID", -1);
 
-        if (projectId == -1) {
-            Toast.makeText(this, "Invalid Project ID", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-
-        initViews();
-        loadProjectInfo();
-
+        listView = findViewById(R.id.lvExpenses);
+        
         findViewById(R.id.btnAddExpense).setOnClickListener(v -> {
             Intent intent = new Intent(this, AddEditExpenseActivity.class);
             intent.putExtra("PROJECT_ID", projectId);
             startActivity(intent);
         });
+
+        setSupportActionBar(findViewById(R.id.toolbarExpenses));
+        if (getSupportActionBar() != null) getSupportActionBar().setDisplayHomeAsUpEnabled(true);
     }
 
-    private void initViews() {
-        MaterialToolbar toolbar = findViewById(R.id.toolbarExpenses);
-        setSupportActionBar(toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
-
-        lvExpenses = findViewById(R.id.lvExpenses);
-        lvExpenses.setEmptyView(findViewById(R.id.tvEmptyExp));
+    @Override
+    public boolean onSupportNavigateUp() {
+        onBackPressed();
+        return true;
     }
 
-    private void loadProjectInfo() {
-        currentProject = dbHelper.getProjectById(projectId);
-        if (currentProject != null) {
-            getSupportActionBar().setTitle("Expenses: " + currentProject.getName());
-        }
-    }
-
-    private void refreshExpenseList() {
-        List<Expense> expenses = dbHelper.getExpensesForProject(projectId);
-
-        // Calculate Total Spent in GBP
-        double totalSpent = 0;
-        for (Expense e : expenses) {
-            totalSpent += e.getAmountInGBP();
-        }
-
-        // Setup Adapter
-        ExpenseAdapter adapter = new ExpenseAdapter(this, expenses);
-        lvExpenses.setAdapter(adapter);
-
-        // Optional: Show a toast if over budget
-        if (currentProject != null && totalSpent > currentProject.getBudget()) {
-            Toast.makeText(this, "Warning: Over Budget!", Toast.LENGTH_LONG).show();
-        }
+    private void updateList() {
+        List<Models.Expense> list = db.getExpensesForProject(projectId);
+        listView.setAdapter(new ExpenseAdapter(this, list));
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        refreshExpenseList(); // Refresh data every time we return to this screen
+        updateList();
     }
 
-    public void showDeleteDialog(Expense expense) {
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Delete Expense")
-                .setMessage("Are you sure you want to delete this expense covering " + expense.getAmount() + " " + expense.getCurrency() + "?")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    dbHelper.deleteExpense(expense.getId());
-                    Toast.makeText(this, "Expense deleted", Toast.LENGTH_SHORT).show();
-                    refreshExpenseList();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+    // --- INNER ADAPTER ---
+    private class ExpenseAdapter extends ArrayAdapter<Models.Expense> {
+        public ExpenseAdapter(Context context, List<Models.Expense> objects) {
+            super(context, 0, objects);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            Models.Expense e = getItem(position);
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.expense_item, parent, false);
+            }
+
+            ((TextView) convertView.findViewById(R.id.tvExpDate)).setText(e.getDate());
+            ((TextView) convertView.findViewById(R.id.tvExpType)).setText(e.getType());
+            ((TextView) convertView.findViewById(R.id.tvExpClaimant)).setText("By: " + e.getClaimant());
+            ((TextView) convertView.findViewById(R.id.tvExpAmount)).setText("£" + String.format("%.2f", e.getAmountInGBP()));
+            ((TextView) convertView.findViewById(R.id.tvExpStatus)).setText(e.getPaymentStatus());
+
+            // EDIT: Open AddEditExpenseActivity
+            convertView.setOnClickListener(v -> {
+                Intent intent = new Intent(getContext(), AddEditExpenseActivity.class);
+                intent.putExtra("PROJECT_ID", projectId);
+                intent.putExtra("EXPENSE_ID", e.getId());
+                getContext().startActivity(intent);
+            });
+
+            // DELETE
+            convertView.findViewById(R.id.ivExpDelete).setOnClickListener(v -> {
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Delete?")
+                        .setPositiveButton("Yes", (d, w) -> {
+                            db.deleteExpense(e.getId());
+                            updateList();
+                        })
+                        .setNegativeButton("No", null).show();
+            });
+
+            return convertView;
+        }
     }
 }
