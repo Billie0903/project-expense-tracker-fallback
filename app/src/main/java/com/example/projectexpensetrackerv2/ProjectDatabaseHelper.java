@@ -87,12 +87,11 @@ public class ProjectDatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    // CRud Operations Here - FEAT B
-    // Method to insert a new project
+    // --- FEATURE B: PROJECT CRUD ---
+
     public long addProject(Project project) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
-
         cv.put(COL_CODE, project.getProjectCode());
         cv.put(COL_NAME, project.getName());
         cv.put(COL_DESC, project.getDescription());
@@ -101,11 +100,9 @@ public class ProjectDatabaseHelper extends SQLiteOpenHelper {
         cv.put(COL_MANAGER, project.getManager());
         cv.put(COL_STATUS, project.getStatus());
         cv.put(COL_BUDGET, project.getBudget());
-
         return db.insert(TABLE_PROJECTS, null, cv);
     }
 
-    // Getting all projects ffs
     public List<Project> getAllProjects() {
         List<Project> projectList = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -130,7 +127,6 @@ public class ProjectDatabaseHelper extends SQLiteOpenHelper {
         return projectList;
     }
 
-    // Get a single project by ID
     public Project getProjectById(int id) {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.query(TABLE_PROJECTS, null,
@@ -156,73 +152,131 @@ public class ProjectDatabaseHelper extends SQLiteOpenHelper {
         return null;
     }
 
-    // Delete Func
     public void deleteProject(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_PROJECTS, COL_ID + "=?", new String[] { String.valueOf(id) });
     }
-        public int updateProject(Project updatedProject) {
-            SQLiteDatabase db = this.getWritableDatabase();
-            ContentValues cv = new ContentValues();
 
-            cv.put(COL_CODE, updatedProject.getProjectCode());
-            cv.put(COL_NAME, updatedProject.getName());
-            cv.put(COL_DESC, updatedProject.getDescription());
-            cv.put(COL_START, updatedProject.getStartDate());
-            cv.put(COL_END, updatedProject.getEndDate());
-            cv.put(COL_MANAGER, updatedProject.getManager());
-            cv.put(COL_STATUS, updatedProject.getStatus());
-            cv.put(COL_BUDGET, updatedProject.getBudget());
+    public int updateProject(Project updatedProject) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_CODE, updatedProject.getProjectCode());
+        cv.put(COL_NAME, updatedProject.getName());
+        cv.put(COL_DESC, updatedProject.getDescription());
+        cv.put(COL_START, updatedProject.getStartDate());
+        cv.put(COL_END, updatedProject.getEndDate());
+        cv.put(COL_MANAGER, updatedProject.getManager());
+        cv.put(COL_STATUS, updatedProject.getStatus());
+        cv.put(COL_BUDGET, updatedProject.getBudget());
 
-            return db.update(TABLE_PROJECTS, cv, COL_ID + "=?",
-                    new String[]{String.valueOf(updatedProject.getId())});
-        }
-
-// Method to add a new expense
-public long addExpense(Expense e) {
-    SQLiteDatabase db = this.getWritableDatabase();
-    ContentValues cv = new ContentValues();
-    cv.put("project_id", e.getProjectId());
-    cv.put("expense_date", e.getDate());
-    cv.put("amount", e.getAmount());
-    cv.put("currency", e.getCurrency());
-    cv.put("expense_type", e.getType());
-    cv.put("payment_method", e.getPaymentMethod());
-    cv.put("claimant", e.getClaimant());
-    cv.put("payment_status", e.getPaymentStatus());
-    cv.put("description", e.getDescription());
-    cv.put("location", e.getLocation());
-
-    long id = db.insert("expenses", null, cv);
-    db.close();
-    return id;
-}
-// Method to get all expenses for one specific project
-public ArrayList<Expense> getExpensesForProject(int projectId) {
-    ArrayList<Expense> list = new ArrayList<>();
-    SQLiteDatabase db = this.getReadableDatabase();
-    Cursor c = db.query("expenses", null, "project_id=?",
-            new String[]{String.valueOf(projectId)}, null, null, null);
-
-    if (c.moveToFirst()) {
-        do {
-            Expense expense = new Expense(
-                    c.getInt(0),      // id
-                    c.getInt(1),      // projectId
-                    c.getString(2),   // expense_date
-                    c.getDouble(3),   // amount
-                    c.getString(4),   // currency
-                    c.getString(5),   // expense_type
-                    c.getString(6),   // payment_method
-                    c.getString(7),   // claimant
-                    c.getString(8),   // payment_status
-                    c.getString(9),   // description
-                    c.getString(10)   // location
-            );
-            list.add(expense);
-        } while (c.moveToNext());
+        return db.update(TABLE_PROJECTS, cv, COL_ID + "=?",
+                new String[]{String.valueOf(updatedProject.getId())});
     }
-    c.close();
-    return list;
-}
+
+    // --- FEATURE C: EXPENSE CRUD ---
+
+    public long addExpense(Expense e) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("project_id", e.getProjectId());
+        cv.put("expense_date", e.getDate());
+        cv.put("amount", e.getAmount());
+        cv.put("currency", e.getCurrency());
+        cv.put("expense_type", e.getType());
+        cv.put("payment_method", e.getPaymentMethod());
+        cv.put("claimant", e.getClaimant());
+        cv.put("payment_status", e.getPaymentStatus());
+        cv.put("description", e.getDescription());
+        cv.put("location", e.getLocation());
+
+        long id = db.insert("expenses", null, cv);
+        db.close();
+        return id;
+    }
+
+    public ArrayList<Expense> getExpensesForProject(int projectId) {
+        ArrayList<Expense> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.query("expenses", null, "project_id=?",
+                new String[]{String.valueOf(projectId)}, null, null, null);
+
+        if (c.moveToFirst()) {
+            do {
+                Expense expense = new Expense(
+                        c.getInt(0), c.getInt(1), c.getString(2), c.getDouble(3),
+                        c.getString(4), c.getString(5), c.getString(6),
+                        c.getString(7), c.getString(8), c.getString(9), c.getString(10)
+                );
+                list.add(expense);
+            } while (c.moveToNext());
+        }
+        c.close();
+        return list;
+    }
+
+    public Expense getExpenseById(int id) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.query("expenses", null, "id=?", new String[]{String.valueOf(id)}, null, null, null);
+
+        if (c != null && c.moveToFirst()) {
+            Expense expense = new Expense(
+                    c.getInt(0), c.getInt(1), c.getString(2), c.getDouble(3),
+                    c.getString(4), c.getString(5), c.getString(6),
+                    c.getString(7), c.getString(8), c.getString(9), c.getString(10)
+            );
+            c.close();
+            return expense;
+        }
+        if (c != null) c.close();
+        return null;
+    }
+
+    public int updateExpense(Expense e) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("project_id", e.getProjectId());
+        cv.put("expense_date", e.getDate());
+        cv.put("amount", e.getAmount());
+        cv.put("currency", e.getCurrency());
+        cv.put("expense_type", e.getType());
+        cv.put("payment_method", e.getPaymentMethod());
+        cv.put("claimant", e.getClaimant());
+        cv.put("payment_status", e.getPaymentStatus());
+        cv.put("description", e.getDescription());
+        cv.put("location", e.getLocation());
+        return db.update("expenses", cv, "id=?", new String[]{String.valueOf(e.getId())});
+    }
+
+    public void deleteExpense(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete("expenses", "id=?", new String[]{String.valueOf(id)});
+    }
+
+    // --- FEATURE D: SEARCH LOGIC ---
+
+    /**
+     * Searches for projects where the name matches the query.
+     * Uses SQL LIKE with % wildcards for partial matches.
+     */
+    public List<Project> searchProjects(String query) {
+        List<Project> filteredList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        // Match query anywhere in the name
+        String selection = COL_NAME + " LIKE ?";
+        String[] selectionArgs = new String[]{"%" + query + "%"};
+
+        Cursor cursor = db.query(TABLE_PROJECTS, null, selection, selectionArgs, null, null, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                filteredList.add(new Project(
+                        cursor.getInt(0), cursor.getString(1), cursor.getString(2),
+                        cursor.getString(3), cursor.getString(4), cursor.getString(5),
+                        cursor.getString(6), cursor.getString(7), cursor.getDouble(8)));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        return filteredList;
+    }
 }

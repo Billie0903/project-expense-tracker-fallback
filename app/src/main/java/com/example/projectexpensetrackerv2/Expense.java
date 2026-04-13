@@ -59,6 +59,22 @@ public class Expense {
     public String getDescription() { return description; }
     public String getLocation() { return location; }
 
+    // Helper method for currency conversion
+    public double getAmountInGBP() {
+        if (currency == null) return amount;
+        switch (currency.toUpperCase()) {
+            case "USD":
+                return amount * 0.79; // Approximate conversion rate
+            case "EUR":
+                return amount * 0.85;
+            case "VND":
+                return amount * 0.000031;
+            case "GBP":
+            default:
+                return amount;
+        }
+    }
+
     // Setters
     public void setId(int id) { this.id = id; }
     public void setProjectId(int projectId) { this.projectId = projectId; }

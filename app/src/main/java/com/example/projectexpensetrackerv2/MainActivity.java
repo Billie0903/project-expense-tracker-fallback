@@ -43,6 +43,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbarMain);
+        setSupportActionBar(toolbar);
+        if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> finish());
+        }
+
         tilProjectId = findViewById(R.id.tilProjectId);
         tilProjectName = findViewById(R.id.tilProjectName);
         etProjectId = findViewById(R.id.etProjectId);

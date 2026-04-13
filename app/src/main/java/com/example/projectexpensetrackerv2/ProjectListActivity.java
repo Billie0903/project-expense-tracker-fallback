@@ -7,12 +7,17 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.List;
+import androidx.appcompat.widget.SearchView; // search bar
+
 
 public class ProjectListActivity extends AppCompatActivity {
 
     private ListView listView;
     private ProjectDatabaseHelper dbHelper;
     private ProjectAdapter adapter;
+    private SearchView searchView;
+    private FirebaseHelper firebaseHelper;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -20,9 +25,14 @@ public class ProjectListActivity extends AppCompatActivity {
         setContentView(R.layout.project_list);
 
         listView = findViewById(R.id.listViewProjects);
+        searchView = findViewById(R.id.searchViewProjects); 
         dbHelper = new ProjectDatabaseHelper(this);
+        firebaseHelper = new FirebaseHelper(this, dbHelper);
 
-        // Removed listView.setOnItemClickListener because ProjectAdapter handles routing
+        listView.setEmptyView(findViewById(R.id.tvEmpty));
+
+        setupToolbar();
+        setupSearch();
 
         findViewById(R.id.btnAddProject).setOnClickListener(v -> {
             Intent intent = new Intent(ProjectListActivity.this, MainActivity.class);
@@ -30,6 +40,69 @@ public class ProjectListActivity extends AppCompatActivity {
         });
 
         refreshList();
+    }
+
+    private void setupToolbar() {
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbarList);
+        setSupportActionBar(toolbar);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.list_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == R.id.action_backup) {
+            performBackup();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void performBackup() {
+        Toast.makeText(this, "Backing up data to cloud...", Toast.LENGTH_SHORT).show();
+        
+        firebaseHelper.uploadAllData(new FirebaseHelper.BackupCallback() {
+            @Override
+            public void onSuccess() {
+                Toast.makeText(ProjectListActivity.this, "Backup Successful!", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onFailure(String error) {
+                new AlertDialog.Builder(ProjectListActivity.this)
+                        .setTitle("Backup Failed")
+                        .setMessage(error)
+                        .setPositiveButton("OK", null)
+                        .show();
+            }
+        });
+    }
+
+// Search logic here
+    private void setupSearch() {
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                performSearch(query);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                performSearch(newText);
+                return true;
+            }
+        });
+    }
+
+    private void performSearch(String query) {
+        List<Project> filteredList = dbHelper.searchProjects(query);
+        adapter = new ProjectAdapter(this, filteredList);
+        listView.setAdapter(adapter);
     }
 
     private void refreshList() {
@@ -42,6 +115,7 @@ public class ProjectListActivity extends AppCompatActivity {
         // 3. Attach the adapter to the ListView
         listView.setAdapter(adapter);
     }
+
 
     @Override
     protected void onResume() {

@@ -50,9 +50,7 @@ public class ExpenseListActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
 
         lvExpenses = findViewById(R.id.lvExpenses);
-        // Assuming you might add these to your activity_expense_list.xml later for better UX
-        // tvProjectTitle = findViewById(R.id.tvProjectTitle);
-        // tvBudgetInfo = findViewById(R.id.tvBudgetInfo);
+        lvExpenses.setEmptyView(findViewById(R.id.tvEmptyExp));
     }
 
     private void loadProjectInfo() {
@@ -65,10 +63,10 @@ public class ExpenseListActivity extends AppCompatActivity {
     private void refreshExpenseList() {
         List<Expense> expenses = dbHelper.getExpensesForProject(projectId);
 
-        // Calculate Total Spent
+        // Calculate Total Spent in GBP
         double totalSpent = 0;
         for (Expense e : expenses) {
-            totalSpent += e.getAmount();
+            totalSpent += e.getAmountInGBP();
         }
 
         // Setup Adapter
@@ -85,5 +83,18 @@ public class ExpenseListActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refreshExpenseList(); // Refresh data every time we return to this screen
+    }
+
+    public void showDeleteDialog(Expense expense) {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Expense")
+                .setMessage("Are you sure you want to delete this expense covering " + expense.getAmount() + " " + expense.getCurrency() + "?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    dbHelper.deleteExpense(expense.getId());
+                    Toast.makeText(this, "Expense deleted", Toast.LENGTH_SHORT).show();
+                    refreshExpenseList();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 }

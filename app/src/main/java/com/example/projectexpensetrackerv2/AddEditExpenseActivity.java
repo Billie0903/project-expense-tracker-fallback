@@ -20,6 +20,7 @@ public class AddEditExpenseActivity extends AppCompatActivity {
     private Button btnSave;
     private ProjectDatabaseHelper dbHelper;
     private int projectId;
+    private int expenseId = -1;
 
     // Data for Spinners based on Coursework Specs
     private String[] expenseTypes = {"Travel", "Equipment", "Materials", "Services", "Software/Licenses", "Labour costs", "Utilities", "Miscellaneous"};
@@ -36,6 +37,7 @@ public class AddEditExpenseActivity extends AppCompatActivity {
 
         // Get the Project ID passed from the previous screen
         projectId = getIntent().getIntExtra("PROJECT_ID", -1);
+        expenseId = getIntent().getIntExtra("EXPENSE_ID", -1);
 
         if (projectId == -1) {
             Toast.makeText(this, "Error: No project selected", Toast.LENGTH_SHORT).show();
@@ -47,12 +49,19 @@ public class AddEditExpenseActivity extends AppCompatActivity {
         setupSpinners();
         setupDatePicker();
 
+        if (expenseId != -1) {
+            loadExpenseData();
+        }
+
         btnSave.setOnClickListener(v -> saveExpense());
     }
 
     private void initViews() {
         MaterialToolbar toolbar = findViewById(R.id.toolbarExpense);
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(expenseId == -1 ? "Add Expense" : "Edit Expense");
+        }
         toolbar.setNavigationOnClickListener(v -> finish());
 
         etDate = findViewById(R.id.etExpenseDate);
@@ -126,14 +135,54 @@ public class AddEditExpenseActivity extends AppCompatActivity {
         // Create Expense Object
         Expense newExpense = new Expense(projectId, date, amount, currency, type, method, claimant, status, desc, location);
 
-        // Save to Database
-        long id = dbHelper.addExpense(newExpense);
-
-        if (id > 0) {
-            Toast.makeText(this, "Expense Added!", Toast.LENGTH_SHORT).show();
-            finish();
+        if (expenseId != -1) {
+            newExpense.setId(expenseId);
+            int rows = dbHelper.updateExpense(newExpense);
+            if (rows > 0) {
+                Toast.makeText(this, "Expense Updated!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Failed to update expense", Toast.LENGTH_SHORT).show();
+            }
         } else {
-            Toast.makeText(this, "Failed to save expense", Toast.LENGTH_SHORT).show();
+            // Save to Database
+            long id = dbHelper.addExpense(newExpense);
+            if (id > 0) {
+                Toast.makeText(this, "Expense Added!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Failed to save expense", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void loadExpenseData() {
+        Expense expense = dbHelper.getExpenseById(expenseId);
+        if (expense != null) {
+            etDate.setText(expense.getDate());
+            etAmount.setText(String.valueOf(expense.getAmount()));
+            spinnerCurrency.setText(expense.getCurrency(), false);
+            etClaimant.setText(expense.getClaimant());
+            etDesc.setText(expense.getDescription());
+            etLocation.setText(expense.getLocation());
+
+            setSpinnerSelection(spinnerType, expenseTypes, expense.getType());
+            setSpinnerSelection(spinnerMethod, paymentMethods, expense.getPaymentMethod());
+            setSpinnerSelection(spinnerStatus, paymentStatuses, expense.getPaymentStatus());
+
+            btnSave.setText("Update Expense");
+        } else {
+            Toast.makeText(this, "Error loading expense for edit", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+    }
+
+    private void setSpinnerSelection(Spinner spinner, String[] array, String value) {
+        for (int i = 0; i < array.length; i++) {
+            if (array[i].equalsIgnoreCase(value)) {
+                spinner.setSelection(i);
+                break;
+            }
         }
     }
 }

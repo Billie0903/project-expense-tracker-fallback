@@ -27,6 +27,7 @@
         <activity android:name=".ExpenseListActivity" />
         <activity android:name=".AddEditExpenseActivity" />
         <activity android:name=".EditProjectActivity" />
+        <activity android:name=".ExpenseDetailActivity" />
 
     </application>
 
